@@ -9,28 +9,39 @@
 
 ---
 
-## 🛠️ Deployment Summary
-1. **Network Engineering:** Provisioned four isolated VMware Host-only VMnets (VMnet2–VMnet5) to host Attacker, Monitoring, AD, and Vulnerable zones.
-2. **Gateway & Security:** Deployed pfSense CE 2.8.1-RELEASE as the core router, assigning physical adapters em0–em4 to manage cross-subnet traffic and IDS monitoring.
-3. **Detection Stack:** Installed Wazuh Manager and Splunk Enterprise on an Ubuntu 22.04 LTS host (10.0.2.10).
-4. **Agent Enrollment:** Deployed Wazuh agents to Windows Server 2019, Windows 10, and Kali Linux to capture 360-degree telemetry.
+## Table of Contents
+- [Lab Overview](#lab-overview)
+- [Network Architecture](#network-architecture)
+- [Tools & Technologies](#tools--technologies)
+- [Phase 1 — Virtual Network Architecture & Segmentation](#phase-1--virtual-network-architecture--segmentation)
+- [Phase 2 — pfSense Firewall Installation & Interface Configuration](#phase-2--pfsense-firewall-installation--interface-configuration)
+- [Phase 3 — pfSense Post-Installation & Network Services](#phase-3--pfsense-post-installation--network-services)
+- [Phase 4 — SIEM & EDR Deployment](#phase-4--siem--edr-deployment)
+- [Phase 5 — Attack Simulation & SIEM Detection Validation](#phase-5--attack-simulation--siem-detection-validation)
+- [Key Findings](#key-findings)
+- [Skills Demonstrated](#skills-demonstrated)
 
 ---
 
-## 📊 Phase 5 — Attack Simulation & SIEM Detection Validation
+## Lab Overview
 
-| Attack Phase | Tool Used | Detection Source | SIEM Evidence / Alert |
-| :--- | :--- | :--- | :--- |
-| **Reconnaissance** | Nmap | **Suricata** | `Possible Nmap User-Agent` |
-| **Fingerprinting** | Nmap | **Suricata** | `SMB Malformed Request` |
-| **Brute Force** | Metasploit | **Wazuh (EDR)** | `Rule 60106`: Logon Failure |
-| **Lateral Movement** | Metasploit | **Wazuh (EDR)** | `Rule 60107`: Logon Success |
-| **Exfiltration** | Meterpreter | **pfSense Logs** | Unusual Outbound Traffic |
+| Property | Detail |
+|---|---|
+| **Hypervisor** | VMware Workstation |
+| **Firewall / Router** | pfSense CE 2.8.1-RELEASE |
+| **SIEM** | Wazuh XDR + Splunk Enterprise |
+| **IDS** | Suricata (via pfSense) |
+| **Attack Platform** | Kali GNU/Linux 2025.4 |
+| **Target** | Metasploitable 2 |
+| **Domain Controller** | Windows Server 2019 |
+| **Workstation** | Windows 10 Enterprise |
+| **Monitoring Host** | Ubuntu 22.04 LTS (Wazuh Manager + Splunk) |
 
 ---
 
-## 🏗️ Network Architecture
-The environment is built on four isolated Host-only VMnets to replicate a real-world enterprise network.
+## Network Architecture
+
+The lab is divided into four isolated VMware Host-only subnets, all routed through a pfSense firewall. This design ensures offensive activity is safely contained and cannot leak into the host network, while still allowing realistic east-west traffic between attacker and target zones.
 
 ```mermaid
 graph TD
@@ -46,6 +57,12 @@ graph TD
     subgraph Monitoring_Zone [VMnet3 - Management & SIEM]
         SIEM[Ubuntu: Wazuh + Splunk - 10.0.2.10]
     end
+    subgraph Target_Zone [VMnet4 & VMnet5 - Targets]
+        AD[Win Server 2019 - 10.0.3.2]
+        Vuln[Metasploitable 2 - 10.0.4.2]
+    end
     Internet --> PF
     PF --> Kali
     PF --> SIEM
+    PF --> AD
+    PF --> Vuln
